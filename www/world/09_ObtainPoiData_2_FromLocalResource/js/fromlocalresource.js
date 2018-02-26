@@ -16,6 +16,11 @@ var World = {
 	// The last selected marker
 	currentMarker: null,
 
+	currentMarker: null,
+
+	locationUpdateCounter: 0,
+	updatePlacemarkDistancesEveryXLocationUpdates: 10,
+
 	// called to inject new POI data
 	loadPoisFromJsonData: function loadPoisFromJsonDataFn(poiData) {
 		// show radar & set click-listener
@@ -71,16 +76,29 @@ var World = {
 		if (!World.initiallyLoadedData) {
 			World.requestDataFromLocal(lat, lon);
 			World.initiallyLoadedData = true;
-			AR.logger.debug("Added Marker" + "latitude" + lat + "longitude" + lon);
-		} else {
-			World.updateMarkersDistance();
+		} else if (World.locationUpdateCounter === 0) {
+			// update placemark distance information frequently, you max also update distances only every 10m with some more effort
+			World.updateDistanceToUserValues();
 		}
+		// helper used to update placemark information every now and then (e.g. every 10 location upadtes fired)
+		World.locationUpdateCounter = (++World.locationUpdateCounter % World.updatePlacemarkDistancesEveryXLocationUpdates);
 
+	},
+	updateDistance() {
+		// this.descriptionLabel.text = this.markerLocation.distanceToUser();
+		this.descriptionLabel.text = this.markerObject.locations[0].distanceToUser() + " meters away";
 	},
 	// Update location of the marker
 	updateMarkersDistance: function updateMarkersDistanceFn() {
 		for (var i = 0, len = this.markerList.length; i < len; i++) {
 			this.markerList[i].updateDistance();
+		}
+	},
+
+	// sets/updates distances of all makers so they are available way faster than calling (time-consuming) distanceToUser() method all the time
+	updateDistanceToUserValues: function updateDistanceToUserValuesFn() {
+		for (var i = 0; i < World.markerList.length; i++) {
+			World.markerList[i].distanceToUser = World.markerList[i].markerObject.locations[0].distanceToUser();
 		}
 	},
 	updateDistance(marker) {
@@ -149,7 +167,15 @@ var World = {
 		// return maximum distance times some factor >1.0 so ther is some room left and small movements of user don't cause places far away to disappear
 		return maxDistanceMeters * 1.1;
 	},
+	// helper to sort places by distance
+	sortByDistanceSorting: function (a, b) {
+		return a.distanceToUser - b.distanceToUser;
+	},
 
+	// helper to sort places by distance, descending
+	sortByDistanceSortingDescending: function (a, b) {
+		return b.distanceToUser - a.distanceToUser;
+	},
 	// udpates values show in "range panel"
 	updateRangeValues: function updateRangeValuesFn() {
 
